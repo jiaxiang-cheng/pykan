@@ -756,8 +756,10 @@ class KAN(nn.Module):
         if title != None:
             plt.gcf().get_axes()[0].text(0.5, y0 * (len(self.width) - 1) + 0.2, title, fontsize=40 * scale, horizontalalignment='center', verticalalignment='center')
 
-    def train(self, dataset, opt="LBFGS", steps=100, log=1, lamb=0., lamb_l1=1., lamb_entropy=2., lamb_coef=0., lamb_coefdiff=0., update_grid=True, grid_update_num=10, loss_fn=None, lr=1., stop_grid_update_step=50, batch=-1,
-              small_mag_threshold=1e-16, small_reg_factor=1., metrics=None, sglr_avoid=False, save_fig=False, in_vars=None, out_vars=None, beta=3, save_fig_freq=1, img_folder='./video', device='cpu'):
+    def train(self, dataset, opt="LBFGS", steps=100, log=1, lamb=0., lamb_l1=1., lamb_entropy=2., lamb_coef=0.,
+              lamb_coefdiff=0., update_grid=True, grid_update_num=10, loss_fn=None, lr=1., stop_grid_update_step=50,
+              batch=-1, small_mag_threshold=1e-16, small_reg_factor=1., metrics=None, sglr_avoid=False, save_fig=False,
+              in_vars=None, out_vars=None, beta=3, save_fig_freq=1, img_folder='./video', device='cpu'):
         '''
         training
 
@@ -807,13 +809,13 @@ class KAN(nn.Module):
 
         Example
         -------
-        >>> # for interactive examples, please see demos
-        >>> from utils import create_dataset
-        >>> model = KAN(width=[2,5,1], grid=5, k=3, noise_scale=0.1, seed=0)
-        >>> f = lambda x: torch.exp(torch.sin(torch.pi*x[:,[0]]) + x[:,[1]]**2)
-        >>> dataset = create_dataset(f, n_var=2)
-        >>> model.train(dataset, opt='LBFGS', steps=50, lamb=0.01);
-        >>> model.plot()
+        # >>> # for interactive examples, please see demos
+        # >>> from utils import create_dataset
+        # >>> model = KAN(width=[2,5,1], grid=5, k=3, noise_scale=0.1, seed=0)
+        # >>> f = lambda x: torch.exp(torch.sin(torch.pi*x[:,[0]]) + x[:,[1]]**2)
+        # >>> dataset = create_dataset(f, n_var=2)
+        # >>> model.train(dataset, opt='LBFGS', steps=50, lamb=0.01);
+        # >>> model.plot()
         '''
 
         def reg(acts_scale):
@@ -840,7 +842,7 @@ class KAN(nn.Module):
 
         pbar = tqdm(range(steps), desc='description', ncols=100)
 
-        if loss_fn == None:
+        if loss_fn is None:
             loss_fn = loss_fn_eval = lambda x, y: torch.mean((x - y) ** 2)
         else:
             loss_fn = loss_fn_eval = loss_fn
@@ -850,13 +852,13 @@ class KAN(nn.Module):
         if opt == "Adam":
             optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         elif opt == "LBFGS":
-            optimizer = LBFGS(self.parameters(), lr=lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+            optimizer = LBFGS(self.parameters(), lr=lr, history_size=10, line_search_fn="strong_wolfe",
+                              tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+        else:
+            optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
-        results = {}
-        results['train_loss'] = []
-        results['test_loss'] = []
-        results['reg'] = []
-        if metrics != None:
+        results = {'train_loss': [], 'test_loss': [], 'reg': []}
+        if metrics is not None:
             for i in range(len(metrics)):
                 results[metrics[i].__name__] = []
 
@@ -873,8 +875,8 @@ class KAN(nn.Module):
             global train_loss, reg_
             optimizer.zero_grad()
             pred = self.forward(dataset['train_input'][train_id].to(device))
-            if sglr_avoid == True:
-                id_ = torch.where(torch.isnan(torch.sum(pred, dim=1)) == False)[0]
+            if sglr_avoid is True:
+                id_ = torch.where(~torch.isnan(torch.sum(pred, dim=1)))[0]
                 train_loss = loss_fn(pred[id_], dataset['train_label'][train_id][id_].to(device))
             else:
                 train_loss = loss_fn(pred, dataset['train_label'][train_id].to(device))
@@ -900,8 +902,8 @@ class KAN(nn.Module):
 
             if opt == "Adam":
                 pred = self.forward(dataset['train_input'][train_id].to(device))
-                if sglr_avoid == True:
-                    id_ = torch.where(torch.isnan(torch.sum(pred, dim=1)) == False)[0]
+                if sglr_avoid is True:
+                    id_ = torch.where(~torch.isnan(torch.sum(pred, dim=1)))[0]
                     train_loss = loss_fn(pred[id_], dataset['train_label'][train_id][id_].to(device))
                 else:
                     train_loss = loss_fn(pred, dataset['train_label'][train_id].to(device))
@@ -911,12 +913,15 @@ class KAN(nn.Module):
                 loss.backward()
                 optimizer.step()
 
-            test_loss = loss_fn_eval(self.forward(dataset['test_input'][test_id].to(device)), dataset['test_label'][test_id].to(device))
+            test_loss = loss_fn_eval(
+                self.forward(dataset['test_input'][test_id].to(device)), dataset['test_label'][test_id].to(device))
 
             if _ % log == 0:
-                pbar.set_description("train loss: %.2e | test loss: %.2e | reg: %.2e " % (torch.sqrt(train_loss).cpu().detach().numpy(), torch.sqrt(test_loss).cpu().detach().numpy(), reg_.cpu().detach().numpy()))
+                pbar.set_description("train loss: %.2e | test loss: %.2e | reg: %.2e " % (
+                    torch.sqrt(train_loss).cpu().detach().numpy(), torch.sqrt(test_loss).cpu().detach().numpy(),
+                    reg_.cpu().detach().numpy()))
 
-            if metrics != None:
+            if metrics is not None:
                 for i in range(len(metrics)):
                     results[metrics[i].__name__].append(metrics[i]().item())
 
